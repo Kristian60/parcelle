@@ -8,7 +8,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from db import init_db, upsert_producer, add_source, link_producer_source, add_style
+from db import init_db, upsert_producer, add_source, link_producer_source, add_style, add_wine
 from extract import extract_producers
 
 
@@ -37,6 +37,15 @@ def ingest(pdf_path: str, restaurant: str):
         link_producer_source(pid, source_id)
         for style in p.get("styles", []):
             add_style(pid, style)
+        for w in p.get("wines", []):
+            add_wine(
+                producer_id=pid,
+                source_id=source_id,
+                name=w.get("name", ""),
+                vintage=w.get("vintage"),
+                format=w.get("format"),
+                price=w.get("price"),
+            )
 
     print(f"[OK] Done. Run `python list.py` to see your producer whitelist.")
 
