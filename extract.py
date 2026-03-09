@@ -47,7 +47,7 @@ def extract_producers(pdf_path: str) -> list[dict]:
     client = Mistral(api_key=MISTRAL_KEY)
 
     # Chunk text if very long (Mistral context limit)
-    chunk_size = 12000
+    chunk_size = 30000  # mistral-large handles 32k context, use bigger chunks = fewer API calls
     chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
     all_producers = {}
 
