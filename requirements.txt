@@ -1,0 +1,4 @@
+pdfplumber
+mistralai
+sqlite-utils
+rich
