@@ -54,7 +54,7 @@ def build_message(hits: list[dict], shop_count: int) -> str:
     seen = {}
     for h in hits:
         p = h["matched_producer"]
-        if p not in seen or int(h.get("price") or 0) < int(seen[p].get("price") or 9999):
+        if p not in seen or float(h.get("price") or 0) < float(seen[p].get("price") or 9999):
             seen[p] = h
 
     hits_deduped = list(seen.values())
