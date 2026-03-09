@@ -11,13 +11,14 @@ from db import init_db
 from match import find_hits
 from notify import notify_hits
 
-from scrapers import lieu_dit, vin_de_table, domaine_brandis, bichel
+from scrapers import lieu_dit, vin_de_table, domaine_brandis, bichel, theis_vine
 
 SCRAPERS = {
     "lieu-dit": lieu_dit.scrape,
     "vin-de-table": vin_de_table.scrape,
     "domaine-brandis": domaine_brandis.scrape,
     "bichel": bichel.scrape,
+    "theis-vine": theis_vine.scrape,
 }
 
 
@@ -38,12 +39,14 @@ def run(sources=None, dry_run=False):
         except Exception as e:
             print(f"[ERROR] {name}: {e}")
 
+    shops_scraped = len([s for s in active if any(h["source"] == s for h in all_hits)])
+
     if dry_run:
         print(f"\n--- DRY RUN: {len(all_hits)} total hits ---")
         for h in all_hits:
             print(f"  {h['matched_producer']} | {h['name']} | {h['source']} | {h.get('price', '')}")
     else:
-        notify_hits(all_hits)
+        notify_hits(all_hits, shop_count=shops_scraped)
 
 
 if __name__ == "__main__":
