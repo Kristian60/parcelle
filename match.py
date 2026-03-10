@@ -98,12 +98,46 @@ def get_whitelisted_producers() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_known_wines(producer_name: str) -> list[str]:
+    """Return normalized wine names we've seen for this producer from restaurant lists."""
+    from db import get_conn
+    rows = get_conn().execute("""
+        SELECT w.name FROM wines w
+        JOIN producers p ON p.id = w.producer_id
+        WHERE p.name = ?
+    """, (producer_name,)).fetchall()
+    return [_normalize(r[0]) for r in rows]
+
+
+def _wine_name_match(retail_wine: str, known_wines: list[str]) -> bool:
+    """Check if a retail wine name matches a known wine from restaurant lists."""
+    retail_norm = _normalize(retail_wine)
+    for known in known_wines:
+        # Extract key words from known wine name (4+ chars)
+        key_words = re.findall(r"\b\w{4,}\b", known)
+        if not key_words:
+            continue
+        # If 70%+ of key words appear in retail wine name → match
+        matches = sum(1 for w in key_words if re.search(rf"\b{re.escape(w)}\b", retail_norm))
+        if len(key_words) > 0 and matches / len(key_words) >= 0.7:
+            return True
+    return False
+
+
 def find_hits(products: list[dict]) -> list[dict]:
     whitelist = get_whitelisted_producers()
     hits = []
     for product in products:
         for producer in whitelist:
             if match_producer(producer["name"], product["name"], product.get("producer", "")):
-                hits.append({**product, "matched_producer": producer["name"], "styles": producer.get("styles", "")})
+                # Determine if this is an exact wine match or producer-only match
+                known_wines = get_known_wines(producer["name"])
+                is_exact = _wine_name_match(product["name"], known_wines) if known_wines else False
+                hits.append({
+                    **product,
+                    "matched_producer": producer["name"],
+                    "styles": producer.get("styles", ""),
+                    "match_type": "exact" if is_exact else "producer"
+                })
                 break
     return hits

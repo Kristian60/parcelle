@@ -18,7 +18,12 @@ def scrape() -> list[dict]:
             break
 
         for p in data:
-            variant = p["variants"][0] if p.get("variants") else {}
+            # Only include products with at least one available variant
+            variants = p.get("variants", [])
+            available_variants = [v for v in variants if v.get("available", False)]
+            if not available_variants:
+                continue
+            variant = available_variants[0]
             products.append({
                 "source": "theis-vine",
                 "name": p.get("title", ""),
