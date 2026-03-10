@@ -86,34 +86,57 @@ def build_message(hits: list[dict], shop_count: int) -> str:
         f"<i>{shop_count} shop{'s' if shop_count > 1 else ''} · {exact_count} exact · {producer_count} producer</i>",
     ]
 
+    def fmt_price(p) -> str:
+        """Format price: strip decimals."""
+        try:
+            return str(int(float(p)))
+        except (TypeError, ValueError):
+            return str(p) if p else "?"
+
+    def get_restaurant_source(producer: str) -> str:
+        """Get the restaurant(s) that whitelisted this producer."""
+        rows = get_conn().execute("""
+            SELECT DISTINCT s.restaurant FROM sources s
+            JOIN producer_sources ps ON ps.source_id = s.id
+            JOIN producers p ON p.id = ps.producer_id
+            WHERE p.name = ?
+        """, (producer,)).fetchall()
+        return ", ".join(r[0] for r in rows)
+
     def format_producer(producer: str, info: dict) -> list[str]:
         wines = info["wines"]
-        has_exact = info["has_exact"]
-        icon = "🎯" if has_exact else "✓"
-        out = [f"\n{icon} <b>{escape(producer)}</b>"]
+        rest_source = get_restaurant_source(producer)
+        src_str = f" <i>({escape(rest_source)})</i>" if rest_source else ""
+        out = [f"\n<b>{escape(producer)}</b>{src_str}"]
 
-        # Show each wine as a sub-item
-        for w in wines:
-            price = w.get("price", "?")
+        # Get restaurant prices for exact wine matching (dedupe)
+        exact_rest = get_exact_wine_prices(producer, "")
+        seen_rest = {}
+        for r in exact_rest:
+            key = (r["restaurant"], r["name"])
+            if key not in seen_rest:
+                seen_rest[key] = r
+
+        # Sort by price asc, exact matches first, limit to 3
+        sorted_wines = sorted(wines, key=lambda w: (w.get("match_type") != "exact", float(w.get("price") or 9999)))
+        display_wines = sorted_wines[:3]
+
+        for w in display_wines:
+            price = fmt_price(w.get("price"))
             source = escape(w["source"])
             name = escape(w["name"])
-            line = f"  · <a href=\"{w['url']}\">{name} — {source} {price} DKK</a>"
-            out.append(line)
 
-        # Restaurant price only for exact matches
-        if has_exact:
-            rest = get_exact_wine_prices(producer, wines[0]["name"])
-            if rest:
-                # Dedupe restaurant entries
-                seen_prices = set()
-                rest_parts = []
-                for r in rest:
-                    key = (r["restaurant"], r["price"])
-                    if key not in seen_prices:
-                        seen_prices.add(key)
-                        rest_parts.append(f"{escape(r['restaurant'])}: {r['price']} DKK")
-                if rest_parts:
-                    out.append(f"  <i>↳ Restaurant: {' / '.join(rest_parts)}</i>")
+            rest_price_str = ""
+            if w.get("match_type") == "exact":
+                for r in seen_rest.values():
+                    rp = fmt_price(r.get("price"))
+                    rest_price_str = f" <i>({escape(r['restaurant'])}, {rp})</i>"
+                    break
+
+            out.append(f"  <a href=\"{w['url']}\">{name}</a> — {source} {price}{rest_price_str}")
+
+        if len(wines) > 3:
+            out.append(f"  <i>+{len(wines) - 3} more wines</i>")
 
         return out
 
@@ -124,23 +147,19 @@ def build_message(hits: list[dict], shop_count: int) -> str:
         items = styled.get(style, [])
         if not items:
             continue
-        emoji = STYLE_EMOJI[style]
-        lines.append(f"\n━━━━━━━━━━━━━━━")
-        lines.append(f"{emoji} <b>{escape(style.upper())}</b>")
+        lines.append(f"\n<b>{escape(style)}</b>")
         for producer, info in items[:MAX_PRODUCERS]:
             lines.extend(format_producer(producer, info))
         if len(items) > MAX_PRODUCERS:
-            lines.append(f"<i>  +{len(items) - MAX_PRODUCERS} more producers</i>")
+            lines.append(f"<i>+{len(items) - MAX_PRODUCERS} more</i>")
 
     # Discovery section
     if unstyled:
-        lines.append(f"\n━━━━━━━━━━━━━━━")
-        lines.append(f"🔍 <b>OUTSIDE YOUR STYLES</b>")
-        lines.append(f"<i>Trusted producers — explore at your own risk</i>")
+        lines.append(f"\n<b>Other</b>")
         for producer, info in unstyled[:MAX_PRODUCERS]:
             lines.extend(format_producer(producer, info))
         if len(unstyled) > MAX_PRODUCERS:
-            lines.append(f"<i>  +{len(unstyled) - MAX_PRODUCERS} more producers</i>")
+            lines.append(f"<i>+{len(unstyled) - MAX_PRODUCERS} more</i>")
 
     return "\n".join(lines)
 
@@ -151,15 +170,15 @@ def send_telegram(message: str):
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
-    # Split on section dividers to avoid cutting HTML tags mid-tag
+    # Split at producer boundaries (\n<b>) to avoid cutting HTML mid-tag
     if len(message) <= 4000:
         chunks = [message]
     else:
-        parts = message.split("\n━━━━━━━━━━━━━━━")
+        parts = message.split("\n<b>")
         chunks = []
         current = ""
         for i, part in enumerate(parts):
-            section = ("" if i == 0 else "\n━━━━━━━━━━━━━━━") + part
+            section = ("" if i == 0 else "\n<b>") + part
             if len(current) + len(section) > 4000:
                 if current:
                     chunks.append(current)
