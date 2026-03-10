@@ -28,7 +28,7 @@ STYLE_EMOJI = {
 }
 
 
-def get_exact_wine_prices(producer_name: str, wine_name: str) -> list[dict]:
+def get_exact_wine_prices(producer_name: str, wine_name: str = "") -> list[dict]:
     """Get restaurant prices for a specific wine (for exact matches only)."""
     rows = get_conn().execute("""
         SELECT DISTINCT w.name, w.price, s.restaurant
@@ -40,6 +40,24 @@ def get_exact_wine_prices(producer_name: str, wine_name: str) -> list[dict]:
         LIMIT 3
     """, (producer_name,)).fetchall()
     return [dict(r) for r in rows]
+
+
+def get_restaurant_source(producer: str) -> str:
+    """Get the restaurant(s) that whitelisted this producer."""
+    rows = get_conn().execute("""
+        SELECT DISTINCT s.restaurant FROM sources s
+        JOIN producer_sources ps ON ps.source_id = s.id
+        JOIN producers p ON p.id = ps.producer_id
+        WHERE p.name = ?
+    """, (producer,)).fetchall()
+    return ", ".join(r[0] for r in rows)
+
+
+def fmt_price(p) -> str:
+    try:
+        return str(int(float(p)))
+    except (TypeError, ValueError):
+        return str(p) if p else "?"
 
 
 def get_producer_styles(producer_name: str) -> list[str]:
@@ -85,23 +103,6 @@ def build_message(hits: list[dict], shop_count: int) -> str:
         f"🍷 <b>Parcelle — Weekly Finds</b>",
         f"<i>{shop_count} shop{'s' if shop_count > 1 else ''} · {exact_count} exact · {producer_count} producer</i>",
     ]
-
-    def fmt_price(p) -> str:
-        """Format price: strip decimals."""
-        try:
-            return str(int(float(p)))
-        except (TypeError, ValueError):
-            return str(p) if p else "?"
-
-    def get_restaurant_source(producer: str) -> str:
-        """Get the restaurant(s) that whitelisted this producer."""
-        rows = get_conn().execute("""
-            SELECT DISTINCT s.restaurant FROM sources s
-            JOIN producer_sources ps ON ps.source_id = s.id
-            JOIN producers p ON p.id = ps.producer_id
-            WHERE p.name = ?
-        """, (producer,)).fetchall()
-        return ", ".join(r[0] for r in rows)
 
     def format_producer(producer: str, info: dict) -> list[str]:
         wines = info["wines"]
@@ -205,3 +206,28 @@ def notify_hits(hits: list[dict], shop_count: int = 1):
         return
     message = build_message(hits, shop_count)
     send_telegram(message)
+
+
+def notify_summary(hits: list[dict], shop_count: int = 1, report_url: str = None):
+    """Send a short Telegram summary with a link to the full HTML report."""
+    from collections import Counter
+    from match import find_hits
+
+    by_producer = {}
+    for h in hits:
+        by_producer[h["matched_producer"]] = h
+
+    total = len(by_producer)
+    exact = sum(1 for h in by_producer.values() if h.get("match_type") == "exact")
+    producer = total - exact
+
+    from datetime import datetime
+    date_str = datetime.utcnow().strftime("%d %b %Y")
+
+    lines = [f"🍷 <b>Parcelle — {date_str}</b>"]
+    lines.append(f"<i>{shop_count} shops · {exact} exact · {producer} producer matches</i>")
+
+    if report_url:
+        lines.append(f"\n<a href=\"{report_url}\">View full report →</a>")
+
+    send_telegram("\n".join(lines))
