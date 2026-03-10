@@ -188,10 +188,18 @@ def build_html(hits: list[dict]) -> str:
       let visible = 0;
       document.querySelectorAll('.producer-card').forEach(card => {{
         const area = card.dataset.area;
-        const minPrice = parseInt(card.dataset.minPrice);
         const areaOk = activeAreas.has(area);
-        const priceOk = minPrice <= maxPrice;
-        const show = areaOk && priceOk;
+
+        // Filter individual wine rows by price
+        let anyWineVisible = false;
+        card.querySelectorAll('.wine-row').forEach(row => {{
+          const price = parseInt(row.dataset.price) || 0;
+          const show = price <= maxPrice;
+          row.classList.toggle('hidden', !show);
+          if (show) anyWineVisible = true;
+        }});
+
+        const show = areaOk && anyWineVisible;
         card.classList.toggle('hidden', !show);
         if (show) visible++;
       }});
