@@ -20,7 +20,7 @@ Return a JSON array of producer objects with:
 - country: country if identifiable (optional)
 - styles: array of matching areas (only include if confident):
   ["Champagne", "Pet-nat", "Orange", "Jura", "Loire", "Burgundy", "Beaujolais",
-   "Rhone", "Germany/Austria", "Spain", "California", "Piedmont"]
+   "Rhone", "Bordeaux", "Germany/Austria", "Spain", "California", "Piedmont"]
 - wines: array of individual wines, each with:
   - name: wine name/cuvee
   - vintage: year as string e.g. "2021" (optional)

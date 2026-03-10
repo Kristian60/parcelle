@@ -17,6 +17,7 @@ STYLE_EMOJI = {
     "Burgundy": "🤍",
     "Beaujolais": "🍒",
     "Rhone": "🌑",
+    "Bordeaux": "🏰",
     "Germany/Austria": "🌿",
     "Spain": "🇪🇸",
     "California": "🌲",
