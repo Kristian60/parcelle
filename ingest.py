@@ -38,10 +38,13 @@ def ingest(pdf_path: str, restaurant: str):
         for style in p.get("styles", []):
             add_style(pid, style)
         for w in p.get("wines", []):
+            wine_name = (w.get("name") or "").strip()
+            if not wine_name:
+                continue
             add_wine(
                 producer_id=pid,
                 source_id=source_id,
-                name=w.get("name", ""),
+                name=wine_name,
                 vintage=w.get("vintage"),
                 format=w.get("format"),
                 price=w.get("price"),

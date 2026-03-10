@@ -10,8 +10,7 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "8744489466")
 
 STYLE_EMOJI = {
     "Champagne": "🥂",
-    "Pet-nat": "🫧",
-    "Orange": "🍊",
+    "Alsace": "🥨",
     "Jura": "🧀",
     "Loire": "🌸",
     "Burgundy": "🤍",

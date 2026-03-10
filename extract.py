@@ -1,14 +1,14 @@
 """
-Extract producers and wines from a PDF wine list using OpenAI GPT-4o.
+Extract producers and wines from a PDF wine list using Mistral.
 Processes page-by-page for thoroughness.
 """
 import json
 import os
 import pdfplumber
-from openai import OpenAI
+from mistralai import Mistral
 
-OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "REDACTED_OPENAI_KEY")
-MODEL = "gpt-4o"
+MISTRAL_KEY = os.environ.get("MISTRAL_API_KEY", "REDACTED_MISTRAL_KEY")
+MODEL = "mistral-large-latest"
 
 SYSTEM_PROMPT = """You are a wine expert extracting data from a restaurant wine list.
 
@@ -19,7 +19,7 @@ Return a JSON array of producer objects with:
 - region: wine region if identifiable (optional)
 - country: country if identifiable (optional)
 - styles: array of matching areas (only include if confident):
-  ["Champagne", "Pet-nat", "Orange", "Jura", "Loire", "Burgundy", "Beaujolais",
+  ["Champagne", "Alsace", "Jura", "Loire", "Burgundy", "Beaujolais",
    "Rhone", "Bordeaux", "Germany/Austria", "Spain", "California", "Piedmont"]
 - wines: array of individual wines, each with:
   - name: wine name/cuvee
@@ -50,7 +50,7 @@ def extract_producers(pdf_path: str) -> list[dict]:
         return []
 
     print(f"[*] {len(pages)} pages extracted, processing in batches...")
-    client = OpenAI(api_key=OPENAI_KEY)
+    client = Mistral(api_key=MISTRAL_KEY)
 
     # Batch pages: ~4 pages per API call to stay focused
     batch_size = 4
@@ -62,7 +62,7 @@ def extract_producers(pdf_path: str) -> list[dict]:
         chunk = "\n\n---PAGE BREAK---\n\n".join(batch)
 
         try:
-            response = client.chat.completions.create(
+            response = client.chat.complete(
                 model=MODEL,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
