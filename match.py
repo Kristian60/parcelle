@@ -125,6 +125,8 @@ def _wine_name_match(retail_wine: str, known_wines: list[str]) -> bool:
 
 
 def find_hits(products: list[dict]) -> list[dict]:
+    # Drop price=0 (sold out)
+    products = [p for p in products if float(p.get("price") or 0) > 0]
     whitelist = get_whitelisted_producers()
     hits = []
     for product in products:
