@@ -18,11 +18,9 @@ Return a JSON array of producer objects with:
 - name: producer/domaine name (required)
 - region: wine region if identifiable (optional)
 - country: country if identifiable (optional)
-- styles: array of matching styles (only include if confident):
-  ["Champagne", "Pet-nat", "Orange", "German/Austrian Riesling", "German/Austrian Weissburgunder",
-   "Jura Chardonnay", "Loire Chenin", "Burgundy Chardonnay", "North Rhone Syrah",
-   "Spanish Tempranillo", "American Cabernet", "Loire Cabernet Franc", "German Spatburgunder",
-   "Structured Burgundy/Beaujolais", "Light Beaujolais", "Piedmont Nebbiolo"]
+- styles: array of matching areas (only include if confident):
+  ["Champagne", "Pet-nat", "Orange", "Jura", "Loire", "Burgundy", "Beaujolais",
+   "Rhone", "Germany/Austria", "Spain", "California", "Piedmont"]
 - wines: array of individual wines, each with:
   - name: wine name/cuvee
   - vintage: year as string e.g. "2021" (optional)
